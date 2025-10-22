@@ -1,30 +1,29 @@
+using Microsoft.Extensions.Options;
 using System.Linq;
 using System.Text.RegularExpressions;
 using XAITestProject.Api.Models;
 using XAITestProject.Api.Services.Interfaces;
+using XAITestProject.Models;
 
 namespace CvScoring.Api.Services;
 public sealed class RuleEngine : IRuleEngine
 {
-    private const int EXP5 = 5, EXP8 = 7, EXP12 = 10;
-    private const int PER_REQ = 3, PER_PREF = 1, REQ_PENALTY = -3;
-    private const int SKILL_BONUS_CAP = 12, MISS_CAP = -18;
-    private const int EDU_BSC = 2, EDU_MSC = 4, EDU_PHD = 6;
-    private const int LANG_EN = 2, LANG_TR = 2;
-    private const int SENIOR_UNDER = -4;
-    private const int THIN = -5, RECENT = 2;
-
+    private readonly RuleOptions _options;
+    public RuleEngine(IOptions<RuleOptions> options)
+    {
+        _options = options.Value;
+    }
     public (int adj, List<string> reasons) Adjust(string cv, string job, Lang langCv, Lang langJob, JobRequirements reqs)
     {
         int total = 0;
         var reasons = new List<string>();
 
         int yrs = ExtractYears(cv);
-        if (yrs >= 12) { total += EXP12; reasons.Add($"Tecrübe: 12+ yıl +{EXP12} / Experience: 12+ years +{EXP12}"); }
-        else if (yrs >= 8) { total += EXP8; reasons.Add($"Tecrübe: 8+ yıl +{EXP8} / Experience: 8+ years +{EXP8}"); }
-        else if (yrs >= 5) { total += EXP5; reasons.Add($"Tecrübe: 5+ yıl +{EXP5} / Experience: 5+ years +{EXP5}"); }
+        if (yrs >= 12) { total += _options.Exp12; reasons.Add($"Tecrübe: 12+ yıl +{_options.Exp12} / Experience: 12+ years +{_options.Exp12}"); }
+        else if (yrs >= 8) { total += _options.Exp8; reasons.Add($"Tecrübe: 8+ yıl +{_options.Exp8} / Experience: 8+ years +{_options.Exp8}"); }
+        else if (yrs >= 5) { total += _options.Exp5; reasons.Add($"Tecrübe: 5+ yıl +{_options.Exp5} / Experience: 5+ years +{_options.Exp5}"); }
 
-        if (reqs.MinYears > 0 && yrs < reqs.MinYears) { total += SENIOR_UNDER; reasons.Add($"Min yıl şartı sağlanmadı {SENIOR_UNDER} / Min years not met {SENIOR_UNDER}"); }
+        if (reqs.MinYears > 0 && yrs < reqs.MinYears) { total += _options.SeniorUnder; reasons.Add($"Min yıl şartı sağlanmadı {_options.SeniorUnder} / Min years not met {_options.SeniorUnder}"); }
 
         var cvReq = ContainsAny(cv, reqs.RequiredSkills);
         var cvPref = ContainsAny(cv, reqs.PreferredSkills);
@@ -33,10 +32,10 @@ public sealed class RuleEngine : IRuleEngine
         var missingReq = reqs.RequiredSkills.Except(cvReq, StringComparer.OrdinalIgnoreCase).ToList();
         var matchedPref = reqs.PreferredSkills.Intersect(cvPref, StringComparer.OrdinalIgnoreCase).ToList();
 
-        int skillBonus = matchedReq.Count * PER_REQ + matchedPref.Count * PER_PREF;
+        int skillBonus = matchedReq.Count * _options.PerReq + matchedPref.Count * _options.PerPref;
         if (skillBonus > 0)
         {
-            skillBonus = Math.Min(skillBonus, SKILL_BONUS_CAP);
+            skillBonus = Math.Min(skillBonus, _options.SkillBonusCap);
             total += skillBonus;
             var parts = new List<string>();
             if (matchedReq.Count > 0) parts.Add(string.Join(", ", matchedReq));
@@ -46,7 +45,7 @@ public sealed class RuleEngine : IRuleEngine
 
         if (missingReq.Count > 0)
         {
-            int penalty = Math.Max(MISS_CAP, REQ_PENALTY * missingReq.Count);
+            int penalty = Math.Max(_options.MissCap, _options.ReqPenalty * missingReq.Count);
             total += penalty;
             reasons.Add($"Eksik zorunlu: {string.Join(", ", missingReq)} {penalty} / Missing required {penalty}");
         }
@@ -65,18 +64,18 @@ public sealed class RuleEngine : IRuleEngine
             reasons.Add($"Sertifikalar: {string.Join(", ", cvCerts)} +{cbonus} / Certifications +{cbonus}");
         }
 
-        if (RecentActivity(cv)) { total += RECENT; reasons.Add($"Son 2 yıl aktivite +{RECENT} / Recent activity +{RECENT}"); }
+        if (RecentActivity(cv)) { total += _options.Recent; reasons.Add($"Son 2 yıl aktivite +{_options.Recent} / Recent activity +{_options.Recent}"); }
 
-        if (reqs.Languages.Contains("english") && enOk) { total += LANG_EN; reasons.Add($"İngilizce yeterlilik +{LANG_EN} / English +{LANG_EN}"); }
-        if (reqs.Languages.Contains("turkish") && trOk) { total += LANG_TR; reasons.Add($"Türkçe yeterlilik +{LANG_TR} / Turkish +{LANG_TR}"); }
+        if (reqs.Languages.Contains("english") && enOk) { total += _options.LangEn; reasons.Add($"İngilizce yeterlilik +{_options.LangEn} / English +{_options.LangEn}"); }
+        if (reqs.Languages.Contains("turkish") && trOk) { total += _options.LangTr; reasons.Add($"Türkçe yeterlilik +{_options.LangTr} / Turkish +{_options.LangTr}"); }
 
         var allCvSkills = new HashSet<string>(cvReq.Concat(cvPref), StringComparer.OrdinalIgnoreCase);
-        if (cv.Length < 250 || allCvSkills.Count < 2) { total += THIN; reasons.Add($"Zayıf içerik {THIN} / Thin CV {THIN} (len={cv.Length}, skills={allCvSkills.Count})"); }
+        if (cv.Length < 250 || allCvSkills.Count < 2) { total += _options.Thin; reasons.Add($"Zayıf içerik {_options.Thin} / Thin CV {_options.Thin} (len={cv.Length}, skills={allCvSkills.Count})"); }
 
-        total = Math.Clamp(total, -25, 25);
+        // Sınırlama, appsettings.json'dan okunan değerleri kullanır.
+        total = Math.Clamp(total, _options.MinAdjustment, _options.MaxAdjustment);
         return (total, reasons);
     }
-
     private static List<string> ContainsAny(string text, IEnumerable<string> keys)
     {
         var t = text.ToLowerInvariant();
@@ -92,12 +91,12 @@ public sealed class RuleEngine : IRuleEngine
         return years;
     }
 
-    private static int EducationPoints(string cv, out string? msg)
+    private int EducationPoints(string cv, out string? msg)
     {
         var t = cv.ToLowerInvariant();
-        if (t.Contains("phd") || t.Contains("doktora")) { msg = $"Eğitim: Doktora +{EDU_PHD} / Education: PhD +{EDU_PHD}"; return EDU_PHD; }
-        if (t.Contains("yüksek lisans") || t.Contains("yuksek lisans") || t.Contains("master") || t.Contains("msc")) { msg = $"Eğitim: Yüksek lisans +{EDU_MSC} / Education: Master +{EDU_MSC}"; return EDU_MSC; }
-        if (t.Contains("lisans") || t.Contains("bsc") || t.Contains("bachelor")) { msg = $"Eğitim: Lisans +{EDU_BSC} / Education: Bachelor +{EDU_BSC}"; return EDU_BSC; }
+        if (t.Contains("phd") || t.Contains("doktora")) { msg = $"Eğitim: Doktora +{_options.EduPhd} / Education: PhD +{_options.EduPhd}"; return _options.EduPhd; }
+        if (t.Contains("yüksek lisans") || t.Contains("yuksek lisans") || t.Contains("master") || t.Contains("msc")) { msg = $"Eğitim: Yüksek lisans +{_options.EduMsc} / Education: Master +{_options.EduMsc}"; return _options.EduMsc; }
+        if (t.Contains("lisans") || t.Contains("bsc") || t.Contains("bachelor")) { msg = $"Eğitim: Lisans +{_options.EduBsc} / Education: Bachelor +{_options.EduBsc}"; return _options.EduBsc; }
         msg = null; return 0;
     }
 

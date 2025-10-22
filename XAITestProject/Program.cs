@@ -2,6 +2,7 @@ using CvScoring.Api.Services;
 using XAITestProject.Api.Clients;
 using XAITestProject.Api.Services;
 using XAITestProject.Api.Services.Interfaces;
+using XAITestProject.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +11,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.Configure<FlaskOptions>(builder.Configuration.GetSection("Flask"));
+builder.Services.Configure<RuleOptions>(builder.Configuration.GetSection("RuleEngine"));
 builder.Services.AddHttpClient<NlpClient>();
 
 builder.Services.AddSingleton<ILanguageDetector, LanguageDetector>();

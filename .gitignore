@@ -1,0 +1,19 @@
+﻿# Visual Studio
+.vs/
+*.user
+*.suo
+bin/
+obj/
+**/bin/
+**/obj/
+
+# Python
+.venv/
+env/
+__pycache__/
+*.pyc
+
+# Misc
+*.log
+outputs/
+*/outputs/

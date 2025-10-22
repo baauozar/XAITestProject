@@ -1,0 +1,1 @@
+using XAITestProject.Api.Models; namespace XAITestProject.Api.Services.Interfaces; public interface ILanguageDetector { Lang Detect(string text); }

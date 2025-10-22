@@ -1,0 +1,1 @@
+using XAITestProject.Api.Models; namespace XAITestProject.Api.Services.Interfaces; public interface IScoringService { Task<XAITestProject.Api.Models.ScoreResponse> ScoreAsync(XAITestProject.Api.Models.ScoreRequest req, CancellationToken ct = default); }

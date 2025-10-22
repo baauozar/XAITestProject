@@ -1,0 +1,1 @@
+namespace XAITestProject.Api.Models; public enum Lang { Turkish, English, Unknown }

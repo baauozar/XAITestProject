@@ -1,0 +1,1 @@
+using XAITestProject.Api.Models; namespace XAITestProject.Api.Services.Interfaces; public interface IRuleEngine { (int adj, List<string> reasons) Adjust(string cv, string job, XAITestProject.Api.Models.Lang langCv, XAITestProject.Api.Models.Lang langJob, XAITestProject.Api.Models.JobRequirements reqs); }

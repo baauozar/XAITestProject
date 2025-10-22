@@ -1,0 +1,1 @@
+using XAITestProject.Api.Models; namespace XAITestProject.Api.Services.Interfaces; public interface IRequirementExtractor { XAITestProject.Api.Models.JobRequirements Extract(string jobText); }

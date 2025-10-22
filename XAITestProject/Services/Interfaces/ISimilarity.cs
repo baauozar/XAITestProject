@@ -1,0 +1,1 @@
+namespace XAITestProject.Api.Services.Interfaces; public interface ISimilarity { double Cosine(Dictionary<string,double> a, Dictionary<string,double> b); }

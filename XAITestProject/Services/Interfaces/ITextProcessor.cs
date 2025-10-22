@@ -1,0 +1,1 @@
+using XAITestProject.Api.Models; namespace XAITestProject.Api.Services.Interfaces; public interface ITextProcessor { List<string> Tokenize(string text, Lang lang); }

@@ -1,0 +1,1 @@
+namespace XAITestProject.Api.Clients; public sealed class FlaskOptions { public string? BaseUrl { get; set; } }

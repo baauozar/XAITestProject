@@ -1,0 +1,1 @@
+namespace XAITestProject.Api.Services.Interfaces; public interface IXai { List<string> TopOverlapTerms(Dictionary<string,double> a, Dictionary<string,double> b, int topK = 10); }

@@ -1,0 +1,1 @@
+using Microsoft.AspNetCore.Http; namespace XAITestProject.Api.Services.Interfaces; public interface IFileTextExtractor { Task<string> ExtractAsync(IFormFile file, CancellationToken ct = default); }

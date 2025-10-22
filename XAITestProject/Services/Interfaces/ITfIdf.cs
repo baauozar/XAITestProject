@@ -1,0 +1,1 @@
+namespace XAITestProject.Api.Services.Interfaces; public interface ITfIdf { (Dictionary<string,double> a, Dictionary<string,double> b) Vectorize(List<string> a, List<string> b); }

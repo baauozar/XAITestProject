@@ -68,7 +68,8 @@ public sealed class RequirementExtractor : IRequirementExtractor
         if (string.IsNullOrEmpty(alt)) return new List<string>();
 
         // ^ marker ... içeriği, boş satır ya da metin sonuna kadar al
-        var pattern = $@"(?ims)^\s*(?:{alt})\s*[:\-]?\s*(.+?)(?=\r?\n\s*\r?\n|$)";
+
+        var pattern = $@"(?i)({alt})\s*[:\-]?\s*(.+?)(?=(?:{alt})|$)";
         var rx = new Regex(pattern, RegexOptions.Compiled);
 
         var zones = new List<string>();

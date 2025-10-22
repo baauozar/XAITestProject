@@ -9,5 +9,7 @@ public record ScoreResponse(
     string uiCulture,
     List<string> explanation,
     string? explanationText = null,   // ← eklendi
-    string? explanationTextEn = null  // ← opsiyonel İngilizce
+    string? explanationTextEn = null,  // ← opsiyonel İngilizc
+   double confidence = 0.0,              // ✅ Added with default
+    string confidenceReason = ""          // ✅ Added with default
 );

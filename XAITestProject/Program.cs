@@ -22,7 +22,7 @@ builder.Services.AddSingleton<IRequirementExtractor, RequirementExtractor>();
 builder.Services.AddSingleton<IFileTextExtractor, FileTextExtractor>();
 builder.Services.AddSingleton<IExplanationFormatter, ExplanationFormatter>();
 builder.Services.AddSingleton<IScoringService, ScoringService>();
-
+builder.Services.AddSingleton<IXai, Xai>();
 var app = builder.Build();
 
 app.UseSwagger();

@@ -159,8 +159,8 @@ public sealed class ScoringService : IScoringService
             RequestedLanguages: cvLangs
         );
 
-        var expTr = _fmt.BuildTr(expData);
-        var expEn = _fmt.BuildEn(expData);
+        var expTr = _fmt.BuildTr(expData, confidence, confidenceReason);
+        var expEn = _fmt.BuildEn(expData, confidence, confidenceReason);
 
         return new ScoreResponse(
             score: Math.Round(finalScore, 2),
@@ -178,106 +178,110 @@ public sealed class ScoringService : IScoringService
     }
 
     private static (double confidence, string reason) CalculateConfidence(
-        string cvText,
-        string jobText,
-        bool usedFlask,
-        Lang cvLang,
-        Lang jobLang,
-        int matchedReqCount,
-        int totalReqCount,
-        int cvYears,
-        int minYears)
+            string cvText,
+            string jobText,
+            bool usedFlask,
+            Lang cvLang,
+            Lang jobLang,
+            int matchedReqCount,
+            int totalReqCount,
+            int cvYears,
+            int minYears)
     {
-        double confidence = 85.0; // Base confidence
-        var reasons = new List<string>();
+        double baseConfidence = 80.0; // Slightly lower base for more factor impact
+        double confidence = baseConfidence;
+        var factors = new List<string>();
 
-        // Factor 1: Model quality (Flask SBERT is more reliable)
+        // Factor 1: Model quality (SBERT is more reliable)
         if (usedFlask)
         {
             confidence += 10.0;
-            reasons.Add("SBERT semantic model (+10)");
+            factors.Add("SBERT Semantic Model (+10.0)");
         }
         else
         {
             confidence -= 15.0;
-            reasons.Add("TF-IDF fallback (-15)");
+            factors.Add("TF-IDF Fallback (-15.0)");
         }
 
-        // Factor 2: CV length (more data = higher confidence)
-        if (cvText.Length < 200)
+        // Factor 2: CV length - More granularity
+        if (cvText.Length < 150)
+        {
+            confidence -= 25.0;
+            factors.Add("CV too brief (<150 chars) (-25.0)");
+        }
+        else if (cvText.Length < 400)
+        {
+            confidence -= 10.0;
+            factors.Add("Short CV (150-400 chars) (-10.0)");
+        }
+        else if (cvText.Length > 2500)
+        {
+            confidence += 7.0;
+            factors.Add("Very detailed CV (>2500 chars) (+7.0)");
+        }
+        else
+        {
+            confidence += 3.0;
+            factors.Add("Adequate CV length (400-2500 chars) (+3.0)");
+        }
+
+        // Factor 3: Job description length - More granularity
+        if (jobText.Length < 150)
         {
             confidence -= 20.0;
-            reasons.Add("very short CV (-20)");
+            factors.Add("Vague Job Description (<150 chars) (-20.0)");
         }
-        else if (cvText.Length < 500)
-        {
-            confidence -= 10.0;
-            reasons.Add("short CV (-10)");
-        }
-        else if (cvText.Length > 2000)
+        else if (jobText.Length > 1500)
         {
             confidence += 5.0;
-            reasons.Add("detailed CV (+5)");
+            factors.Add("Detailed Job Description (>1500 chars) (+5.0)");
+        }
+        else
+        {
+            confidence += 2.0;
+            factors.Add("Adequate Job Description length (+2.0)");
         }
 
-        // Factor 3: Job description length
-        if (jobText.Length < 200)
-        {
-            confidence -= 15.0;
-            reasons.Add("vague job description (-15)");
-        }
-        else if (jobText.Length > 1000)
-        {
-            confidence += 5.0;
-            reasons.Add("detailed job description (+5)");
-        }
-
-        // Factor 4: Language mismatch
+        // Factor 4: Language match - Increased penalty for mismatch
         if (cvLang != jobLang && cvLang != Lang.Unknown && jobLang != Lang.Unknown)
         {
-            confidence -= 10.0;
-            reasons.Add("language mismatch (-10)");
+            confidence -= 15.0;
+            factors.Add("Language Mismatch (CV/Job) (-15.0)");
         }
 
-        // Factor 5: Required skills coverage
+        // Factor 5: Required skills coverage - Weighted impact
         if (totalReqCount > 0)
         {
             double coverage = (double)matchedReqCount / totalReqCount;
-            if (coverage >= 0.8)
-            {
-                confidence += 5.0;
-                reasons.Add("strong skill match (+5)");
-            }
-            else if (coverage < 0.3)
-            {
-                confidence -= 10.0;
-                reasons.Add("weak skill match (-10)");
-            }
+            // Impact ranges from -10 to +10 based on coverage (2*coverage-1) * 10
+            double skillImpact = Math.Round(10 * (2 * coverage - 1));
+            confidence += skillImpact;
+            factors.Add($"Skill Coverage ({coverage:P0}, {matchedReqCount}/{totalReqCount}) ({(skillImpact > 0 ? "+" : "")}{skillImpact:0.#})");
         }
         else
         {
-            // No extractable requirements
-            confidence -= 5.0;
-            reasons.Add("no clear requirements (-5)");
+            confidence -= 8.0;
+            factors.Add("No clear requirements extracted (-8.0)");
         }
 
-        // Factor 6: Experience clarity
+        // Factor 6: Experience clarity & alignment
         if (cvYears == 0)
         {
             confidence -= 5.0;
-            reasons.Add("unclear experience (-5)");
+            factors.Add("Unclear Experience in CV (-5.0)");
         }
-        else if (minYears > 0 && Math.Abs(cvYears - minYears) > 5)
+        else if (minYears > 0)
         {
-            confidence -= 5.0;
-            reasons.Add("experience mismatch (-5)");
+            int diff = cvYears - minYears;
+            if (diff < -2) { confidence -= 5.0; factors.Add($"Significant Experience Gap (Min {minYears}, CV {cvYears}) (-5.0)"); }
+            else if (diff >= 5) { confidence += 3.0; factors.Add("Experience significantly exceeds minimum (+3.0)"); }
         }
 
-        // Clamp between 0-100
+        // Final score and reason text
         confidence = Math.Clamp(confidence, 0, 100);
-
-        // Build reason string
-        string reasonText = $"Confidence: {confidence:0.##}% - Factors: {string.Join(", ", reasons)}";
+        // This reason string now contains all dynamic factor contributions for explanation
+        string reasonText = $"Base: {baseConfidence:0.##}% | Factors: {string.Join(" | ", factors)} | Final: {confidence:0.##}%";
 
         return (confidence, reasonText);
     }

@@ -4,6 +4,6 @@ using XAITestProject.Models;
 
 public interface IExplanationFormatter
 {
-    string BuildTr(ExplanationData b);
-    string BuildEn(ExplanationData b);
+    string BuildTr(ExplanationData b, double confidence, string confidenceReason);
+    string BuildEn(ExplanationData b, double confidence, string confidenceReason);
 }

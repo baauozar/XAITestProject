@@ -23,29 +23,28 @@ public sealed class RequirementExtractor : IRequirementExtractor
     {
         var t = (jobText ?? string.Empty).ToLowerInvariant();
 
-        // MinYears init-only olduğu için başlatıcıda set ediyoruz
         var req = new JobRequirements { MinYears = ExtractMinYears(t) };
 
-        // Bölge yakalama
+        // Capture zones for required and preferred skills
         var requiredBlocks = CaptureZones(t, new[] { "zorunlu", "gerekli", "must have", "required", "mandatory" });
         var preferredBlocks = CaptureZones(t, new[] { "tercihen", "nice to have", "preferred", "plus", "artı" });
 
-        // Beceri terimleri
+        // Extract skill terms from blocks
         var requiredTerms = new HashSet<string>(requiredBlocks.SelectMany(SplitSkills), StringComparer.OrdinalIgnoreCase);
         var preferredTerms = new HashSet<string>(preferredBlocks.SelectMany(SplitSkills), StringComparer.OrdinalIgnoreCase);
 
-        // Dil gereksinimi
+        // Language requirements
         if (Regex.IsMatch(t, @"\b(english|required english|ingilizce)\b", RegexOptions.IgnoreCase))
             req.Languages.Add("english");
         if (Regex.IsMatch(t, @"\b(turkish|türkçe|turkce)\b", RegexOptions.IgnoreCase))
             req.Languages.Add("turkish");
 
-        // Sertifikalar
+        // Certifications
         foreach (var c in CertsLexicon)
             if (t.Contains(c))
                 req.Certifications.Add(c);
 
-        // Sözlükten zorunlu/tercih sınıflaması
+        // Classify skills from lexicon as required or preferred
         foreach (var s in SkillsLexicon)
         {
             bool inRequired = requiredTerms.Contains(s) || requiredBlocks.Any(b => b.Contains(s, StringComparison.OrdinalIgnoreCase));
@@ -60,28 +59,26 @@ public sealed class RequirementExtractor : IRequirementExtractor
         return req;
     }
 
-    // İşaretçileri tek pattern içinde birleştir
     private static List<string> CaptureZones(string text, IEnumerable<string> markers)
     {
         var alt = string.Join("|", markers.Where(m => !string.IsNullOrWhiteSpace(m))
                                           .Select(Regex.Escape));
         if (string.IsNullOrEmpty(alt)) return new List<string>();
 
-        // ^ marker ... içeriği, boş satır ya da metin sonuna kadar al
-
+        // ✅ FIXED: Capture content after marker (Group 2, not Group 1)
         var pattern = $@"(?i)({alt})\s*[:\-]?\s*(.+?)(?=(?:{alt})|$)";
-        var rx = new Regex(pattern, RegexOptions.Compiled);
+        var rx = new Regex(pattern, RegexOptions.Compiled | RegexOptions.Singleline);
 
         var zones = new List<string>();
         foreach (Match m in rx.Matches(text))
         {
-            var block = m.Groups[1].Value.Trim();
+            // ✅ FIXED: Get Group 2 (content), not Group 1 (marker)
+            var block = m.Groups[2].Value.Trim();
             if (!string.IsNullOrEmpty(block)) zones.Add(block);
         }
         return zones;
     }
 
-    // Virgül, noktalı virgül, satır sonuna göre parçala; uçtaki noktalama kaldır
     private static IEnumerable<string> SplitSkills(string block)
     {
         foreach (var raw in Regex.Split(block, @"[,\;\r\n]+"))

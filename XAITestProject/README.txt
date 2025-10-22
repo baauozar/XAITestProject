@@ -5,7 +5,7 @@ Tam paket: .NET 8 API + Flask (dinamik)
    - klasör: nlp
    - python -m venv .venv  &&  .venv\Scripts\activate  (macOS/Linux: source .venv/bin/activate)
    - pip install -r requirements.txt
-   - python app.py   (http://127.0.0.1:8001/health)
+   - python PythonApplication1.py   (http://127.0.0.1:8001/health)
 
 2) .NET API
    - klasör: src/CvScoring.Api
